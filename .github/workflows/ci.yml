@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (Elixir 1.19 / OTP 27)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Elixir/OTP
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.19.0'
+          otp-version: '27.1'
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+            ~/.mix
+            ~/.hex
+          key: ${{ runner.os }}-mix-${{ hashFiles('mix.lock') }}-${{ github.job }}
+          restore-keys: |
+            ${{ runner.os }}-mix-
+
+      - name: Install Hex/Rebar
+        run: |
+          mix local.hex --force
+          mix local.rebar --force
+
+      - name: Install deps (test)
+        env:
+          MIX_ENV: test
+        run: mix deps.get
+
+      - name: Check formatting
+        run: mix format --check-formatted
+
+      - name: Compile (warnings as errors)
+        env:
+          MIX_ENV: test
+        run: mix compile --warnings-as-errors
+
+      - name: Run tests
+        env:
+          MIX_ENV: test
+        run: mix test
+
+  docs:
+    name: Docs (Elixir 1.19 / OTP 27)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Elixir/OTP
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.19.0'
+          otp-version: '27.1'
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+            ~/.mix
+            ~/.hex
+          key: ${{ runner.os }}-mix-${{ hashFiles('mix.lock') }}-${{ github.job }}
+          restore-keys: |
+            ${{ runner.os }}-mix-
+
+      - name: Install Hex/Rebar
+        run: |
+          mix local.hex --force
+          mix local.rebar --force
+
+      - name: Install deps (dev)
+        env:
+          MIX_ENV: dev
+        run: mix deps.get
+
+      - name: Build docs
+        env:
+          MIX_ENV: dev
+        run: mix docs
