@@ -110,11 +110,9 @@ defmodule GGUFX.Dequantize do
       values =
         Enum.flat_map(blocks, fn <<d::unsigned-little-16, quants::binary-size(16)>> ->
           scale = f16_to_f32(d)
-
-          for <<packed::unsigned-8 <- quants>>, part <- [0, 1] do
-            q = if part == 0, do: (packed &&& 0x0F) - 8, else: (packed >>> 4) - 8
-            q * scale
-          end
+          lows = for <<packed::unsigned-8 <- quants>>, do: ((packed &&& 0x0F) - 8) * scale
+          highs = for <<packed::unsigned-8 <- quants>>, do: ((packed >>> 4) - 8) * scale
+          lows ++ highs
         end)
 
       floats_to_tensor(values, count)

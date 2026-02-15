@@ -95,14 +95,15 @@ defmodule GGUFX.TestHelpers do
     end
 
     for chunk <- Enum.chunk_every(quants, 32), into: <<>> do
+      lows = Enum.take(chunk, 16)
+      highs = Enum.drop(chunk, 16)
+
       packed =
-        chunk
-        |> Enum.chunk_every(2)
-        |> Enum.map(fn [low, high] ->
-          low_n = low + 8 &&& 0x0F
-          high_n = high + 8 &&& 0x0F
-          low_n ||| high_n <<< 4
-        end)
+        for i <- 0..15 do
+          low_n = (Enum.at(lows, i) + 8) &&& 0x0F
+          high_n = (Enum.at(highs, i) + 8) &&& 0x0F
+          low_n ||| (high_n <<< 4)
+        end
 
       <<f32_to_f16_bits(scale)::little-16, IO.iodata_to_binary(packed)::binary>>
     end

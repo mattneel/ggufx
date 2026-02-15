@@ -13,8 +13,16 @@ concurrency:
 
 jobs:
   test:
-    name: Test (Elixir 1.19 / OTP 27)
+    name: Test (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - elixir: '1.15.8'
+            otp: '26.2'
+          - elixir: '1.19.0'
+            otp: '27.1'
 
     steps:
       - name: Checkout
@@ -23,8 +31,8 @@ jobs:
       - name: Setup Elixir/OTP
         uses: erlef/setup-beam@v1
         with:
-          elixir-version: '1.19.0'
-          otp-version: '27.1'
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
 
       - name: Restore cache
         uses: actions/cache@v4
@@ -34,7 +42,7 @@ jobs:
             _build
             ~/.mix
             ~/.hex
-          key: ${{ runner.os }}-mix-${{ hashFiles('mix.lock') }}-${{ github.job }}
+          key: ${{ runner.os }}-mix-${{ matrix.elixir }}-${{ matrix.otp }}-${{ hashFiles('mix.lock') }}-${{ github.job }}
           restore-keys: |
             ${{ runner.os }}-mix-
 
@@ -62,7 +70,7 @@ jobs:
         run: mix test
 
   docs:
-    name: Docs (Elixir 1.19 / OTP 27)
+    name: Docs (Elixir 1.15 / OTP 26)
     runs-on: ubuntu-latest
 
     steps:
@@ -72,8 +80,8 @@ jobs:
       - name: Setup Elixir/OTP
         uses: erlef/setup-beam@v1
         with:
-          elixir-version: '1.19.0'
-          otp-version: '27.1'
+          elixir-version: '1.15.8'
+          otp-version: '26.2'
 
       - name: Restore cache
         uses: actions/cache@v4
@@ -83,7 +91,7 @@ jobs:
             _build
             ~/.mix
             ~/.hex
-          key: ${{ runner.os }}-mix-${{ hashFiles('mix.lock') }}-${{ github.job }}
+          key: ${{ runner.os }}-mix-docs-${{ hashFiles('mix.lock') }}-${{ github.job }}
           restore-keys: |
             ${{ runner.os }}-mix-
 

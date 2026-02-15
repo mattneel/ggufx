@@ -19,11 +19,10 @@ defmodule GGUFX do
           metadata: %{String.t() => metadata_value()},
           tensor_info: %{String.t() => TensorInfo.t()},
           tensors: %{String.t() => Nx.Tensor.t()} | nil,
-          source: String.t() | nil,
-          tensor_data_offset: non_neg_integer() | nil
+          source: String.t() | nil
         }
 
-  defstruct [:version, :metadata, :tensor_info, :tensors, :source, :tensor_data_offset]
+  defstruct [:version, :metadata, :tensor_info, :tensors, :source]
 
   @doc "Load and parse a GGUF file. Options: `:lazy`, `:tensor_filter`, `:dequantize` (default true)."
   @spec load(Path.t(), keyword()) :: {:ok, t()} | {:error, term()}
@@ -41,8 +40,7 @@ defmodule GGUFX do
          metadata: parsed.metadata,
          tensor_info: parsed.tensor_info,
          tensors: tensors,
-         source: if(lazy?, do: Path.expand(path), else: nil),
-         tensor_data_offset: parsed.tensor_data_offset
+         source: if(lazy?, do: Path.expand(path), else: nil)
        }}
     end
   end
@@ -137,12 +135,10 @@ defmodule GGUFX do
     end)
   end
 
-  defp fetch_tensor_from_source(
-         %__MODULE__{source: source, tensor_info: tensor_info, tensor_data_offset: base_offset},
-         name
-       )
-       when is_binary(source) and is_integer(base_offset) do
+  defp fetch_tensor_from_source(%__MODULE__{source: source, tensor_info: tensor_info}, name)
+       when is_binary(source) do
     with {:ok, info} <- map_fetch(tensor_info, name),
+         {:ok, base_offset} <- source_tensor_data_offset(source),
          {:ok, tensor_binary} <- pread_tensor(source, base_offset + info.offset, info.byte_size),
          {:ok, tensor} <- decode_tensor_data(tensor_binary, info, true) do
       {:ok, maybe_reshape(tensor, info.shape)}
@@ -191,6 +187,13 @@ defmodule GGUFX do
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  defp source_tensor_data_offset(path) do
+    with {:ok, binary} <- read_file(path),
+         {:ok, parsed} <- parse_binary(binary) do
+      {:ok, parsed.tensor_data_offset}
     end
   end
 
